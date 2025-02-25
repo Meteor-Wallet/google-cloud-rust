@@ -85,8 +85,17 @@ pub(crate) fn build<T: Into<reqwest::Body>>(
     req: &UploadObjectRequest,
     media: &Media,
     body: T,
+    requester_project_id: Option<String>,
 ) -> RequestBuilder {
-    let url = format!("{}/b/{}/o?uploadType=media", base_url, req.bucket.escape(),);
+    let url = match requester_project_id {
+        Some(project_id) => format!(
+            "{}/b/{}/o?uploadType=media&&userProject={}",
+            base_url,
+            req.bucket.escape(),
+            project_id.escape()
+        ),
+        None => format!("{}/b/{}/o?uploadType=media", base_url, req.bucket.escape()),
+    };
     let mut builder = client
         .post(url)
         .query(&req)

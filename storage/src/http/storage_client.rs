@@ -1068,7 +1068,48 @@ impl StorageClient {
                 self.send(builder).await
             }
             UploadType::Simple(media) => {
-                let builder = objects::upload::build(self.v1_upload_endpoint.as_str(), &self.http, req, media, data);
+                let builder =
+                    objects::upload::build(self.v1_upload_endpoint.as_str(), &self.http, req, media, data, None);
+                let builder = self.with_headers(builder).await?;
+                let mut request = builder.build()?;
+                // In the case of not streamed and 0 bytes, Content-Length=0 must be explicitly specified.
+                if !request.headers().contains_key(CONTENT_LENGTH) {
+                    if let Some(Some(is_empty)) = request.body().map(|b| b.as_bytes().map(|b| b.is_empty())) {
+                        if is_empty {
+                            request
+                                .headers_mut()
+                                .insert(CONTENT_LENGTH, HeaderValue::from_static("0"));
+                        }
+                    }
+                }
+                self.send_request(request).await
+            }
+        }
+    }
+
+    #[cfg_attr(feature = "trace", tracing::instrument(skip_all))]
+    pub async fn upload_object_with_requester_project<T: Into<Body>>(
+        &self,
+        req: &UploadObjectRequest,
+        data: T,
+        upload_type: &UploadType,
+        requester_project: String,
+    ) -> Result<Object, Error> {
+        match upload_type {
+            UploadType::Multipart(meta) => {
+                let builder =
+                    objects::upload::build_multipart(self.v1_upload_endpoint.as_str(), &self.http, req, meta, data)?;
+                self.send(builder).await
+            }
+            UploadType::Simple(media) => {
+                let builder = objects::upload::build(
+                    self.v1_upload_endpoint.as_str(),
+                    &self.http,
+                    req,
+                    media,
+                    data,
+                    Some(requester_project),
+                );
                 let builder = self.with_headers(builder).await?;
                 let mut request = builder.build()?;
                 // In the case of not streamed and 0 bytes, Content-Length=0 must be explicitly specified.
