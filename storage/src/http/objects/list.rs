@@ -72,7 +72,15 @@ pub struct ListObjectsResponse {
     pub next_page_token: Option<String>,
 }
 
-pub(crate) fn build(base_url: &str, client: &Client, req: &ListObjectsRequest) -> RequestBuilder {
-    let url = format!("{}/b/{}/o", base_url, req.bucket.escape());
+pub(crate) fn build(
+    base_url: &str,
+    client: &Client,
+    req: &ListObjectsRequest,
+    requester_project: Option<String>,
+) -> RequestBuilder {
+    let url = match requester_project {
+        Some(project) => format!("{}/b/{}/o?userProject={}", base_url, req.bucket.escape(), project),
+        None => format!("{}/b/{}/o", base_url, req.bucket.escape()),
+    };
     client.get(url).query(&req)
 }

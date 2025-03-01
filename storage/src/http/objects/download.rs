@@ -25,8 +25,23 @@ impl Range {
     }
 }
 
-pub(crate) fn build(base_url: &str, client: &Client, req: &GetObjectRequest, range: &Range) -> RequestBuilder {
-    let url = format!("{}/b/{}/o/{}?alt=media", base_url, req.bucket.escape(), req.object.escape());
+pub(crate) fn build(
+    base_url: &str,
+    client: &Client,
+    req: &GetObjectRequest,
+    range: &Range,
+    requester_project: Option<String>,
+) -> RequestBuilder {
+    let url = match requester_project {
+        Some(project) => format!(
+            "{}/b/{}/o/{}?userProject={}&alt=media",
+            base_url,
+            req.bucket.escape(),
+            req.object.escape(),
+            project
+        ),
+        None => format!("{}/b/{}/o/{}?alt=media", base_url, req.bucket.escape(), req.object.escape()),
+    };
     let builder = range.with_header(client.get(url).query(&req));
     if let Some(e) = &req.encryption {
         e.with_headers(builder)

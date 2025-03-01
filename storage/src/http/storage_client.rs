@@ -882,7 +882,17 @@ impl StorageClient {
     /// ```
     #[cfg_attr(feature = "trace", tracing::instrument(skip_all))]
     pub async fn list_objects(&self, req: &ListObjectsRequest) -> Result<ListObjectsResponse, Error> {
-        let builder = objects::list::build(self.v1_endpoint.as_str(), &self.http, req);
+        let builder = objects::list::build(self.v1_endpoint.as_str(), &self.http, req, None);
+        self.send(builder).await
+    }
+
+    #[cfg_attr(feature = "trace", tracing::instrument(skip_all))]
+    pub async fn list_objects_with_requester_project(
+        &self,
+        req: &ListObjectsRequest,
+        requester_project: String,
+    ) -> Result<ListObjectsResponse, Error> {
+        let builder = objects::list::build(self.v1_endpoint.as_str(), &self.http, req, Some(requester_project));
         self.send(builder).await
     }
 
@@ -981,7 +991,22 @@ impl StorageClient {
     /// ```
     #[cfg_attr(feature = "trace", tracing::instrument(skip_all))]
     pub async fn download_object(&self, req: &GetObjectRequest, range: &Range) -> Result<Vec<u8>, Error> {
-        let builder = objects::download::build(self.v1_endpoint.as_str(), &self.http, req, range);
+        let builder = objects::download::build(self.v1_endpoint.as_str(), &self.http, req, range, None);
+        let request = self.with_headers(builder).await?;
+        let response = request.send().await?;
+        let response = check_response_status(response).await?;
+        Ok(response.bytes().await?.to_vec())
+    }
+
+    #[cfg_attr(feature = "trace", tracing::instrument(skip_all))]
+    pub async fn download_object_with_requester_project(
+        &self,
+        req: &GetObjectRequest,
+        range: &Range,
+        requester_project: String,
+    ) -> Result<Vec<u8>, Error> {
+        let builder =
+            objects::download::build(self.v1_endpoint.as_str(), &self.http, req, range, Some(requester_project));
         let request = self.with_headers(builder).await?;
         let response = request.send().await?;
         let response = check_response_status(response).await?;
@@ -1015,7 +1040,7 @@ impl StorageClient {
         req: &GetObjectRequest,
         range: &Range,
     ) -> Result<impl Stream<Item = Result<bytes::Bytes, Error>>, Error> {
-        let builder = objects::download::build(self.v1_endpoint.as_str(), &self.http, req, range);
+        let builder = objects::download::build(self.v1_endpoint.as_str(), &self.http, req, range, None);
         let request = self.with_headers(builder).await?;
         let response = request.send().await?;
         let response = check_response_status(response).await?;
@@ -1296,7 +1321,17 @@ impl StorageClient {
     /// ```
     #[cfg_attr(feature = "trace", tracing::instrument(skip_all))]
     pub async fn delete_object(&self, req: &DeleteObjectRequest) -> Result<(), Error> {
-        let builder = objects::delete::build(self.v1_endpoint.as_str(), &self.http, req);
+        let builder = objects::delete::build(self.v1_endpoint.as_str(), &self.http, req, None);
+        self.send_get_empty(builder).await
+    }
+
+    #[cfg_attr(feature = "trace", tracing::instrument(skip_all))]
+    pub async fn delete_object_with_requester_project(
+        &self,
+        req: &DeleteObjectRequest,
+        requester_project: String,
+    ) -> Result<(), Error> {
+        let builder = objects::delete::build(self.v1_endpoint.as_str(), &self.http, req, Some(requester_project));
         self.send_get_empty(builder).await
     }
 

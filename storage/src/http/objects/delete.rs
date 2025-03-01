@@ -32,7 +32,21 @@ pub struct DeleteObjectRequest {
     pub if_metageneration_not_match: Option<i64>,
 }
 
-pub(crate) fn build(base_url: &str, client: &Client, req: &DeleteObjectRequest) -> RequestBuilder {
-    let url = format!("{}/b/{}/o/{}", base_url, req.bucket.escape(), req.object.escape());
+pub(crate) fn build(
+    base_url: &str,
+    client: &Client,
+    req: &DeleteObjectRequest,
+    requester_project: Option<String>,
+) -> RequestBuilder {
+    let url = match requester_project {
+        Some(project) => format!(
+            "{}/b/{}/o/{}?userProject={}",
+            base_url,
+            req.bucket.escape(),
+            req.object.escape(),
+            project
+        ),
+        None => format!("{}/b/{}/o/{}", base_url, req.bucket.escape(), req.object.escape()),
+    };
     client.delete(url).query(&req)
 }
